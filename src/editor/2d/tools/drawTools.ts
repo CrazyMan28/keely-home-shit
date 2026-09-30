@@ -20,6 +20,7 @@ export class WallTool implements Tool2D {
   private points: Vec2[] = [];
   private cursorPt: Vec2 | null = null;
   private lastDownAt = 0;
+  private lastDownScreen: Vec2 | null = null;
   private host: ToolHost;
   constructor(host: ToolHost) {
     this.host = host;
@@ -46,9 +47,12 @@ export class WallTool implements Tool2D {
 
   pointerDown(e: ToolEvent): void {
     if (e.button !== 0) return;
+    // Swallow only the second click of a double-click (same spot, quick).
     const now = performance.now();
-    if (now - this.lastDownAt < 280) return; // second click of a double-click
+    const isDouble = now - this.lastDownAt < 320 && this.lastDownScreen && dist(this.lastDownScreen, e.screen) < 6;
     this.lastDownAt = now;
+    this.lastDownScreen = e.screen;
+    if (isDouble) return;
     const s = this.snap(e);
     const p = s.point;
     if (this.points.length >= 3 && dist(p, this.points[0]) < this.host.vp.px(10)) {

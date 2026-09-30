@@ -18,7 +18,7 @@ export interface FinalizeResult {
  */
 export function finalizeFloor(prev: Floor, next: Floor, pinned: Iterable<Id> = []): FinalizeResult {
   if (prev === next) return { floor: next, violations: [], overrodePins: false };
-  const geometryChanged = prev.nodes !== next.nodes || prev.walls !== next.walls;
+  const geometryChanged = prev.nodes !== next.nodes || prev.walls !== next.walls || prev.constraints !== next.constraints;
   let floor = next;
   let violations: Violation[] = [];
   let overrodePins = false;

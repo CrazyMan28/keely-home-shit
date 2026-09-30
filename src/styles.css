@@ -639,8 +639,11 @@ select.input {
 /* ───────────────────────── App shell ───────────────────────── */
 .app {
   display: grid;
-  grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) var(--statusbar-h);
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
+  width: 100%;
+  overflow: hidden;
   animation: fade-in var(--t-slow) var(--ease-out);
 }
 .topbar {
@@ -752,7 +755,9 @@ select.input {
 .workspace {
   display: flex;
   min-height: 0;
+  min-width: 0;
   position: relative;
+  overflow: hidden;
 }
 .rail {
   width: var(--rail-w);
@@ -892,13 +897,20 @@ select.input {
 }
 .panel-tabs {
   display: flex;
-  gap: 2px;
-  padding: 8px 8px 0;
+  gap: 0;
+  padding: 8px 6px 0;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+.panel-tabs::-webkit-scrollbar {
+  display: none;
 }
 .panel-tabs button {
   position: relative;
-  padding: 6px 8px 9px;
+  flex: none;
+  padding: 6px 7px 9px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);

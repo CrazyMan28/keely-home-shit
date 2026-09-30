@@ -8,6 +8,9 @@ import type { ResizeAnchor } from '../geometry/walls/wallOps';
 import { STATUS_LABEL } from '../model/renovation';
 import type { DoorStyle, ElementStatus, Floor, Id, Item, MaterialCategory, Opening, Wall, WindowStyle } from '../model/types';
 import {
+  addConstraint,
+  constraintsFor,
+  removeConstraint,
   convertWallType,
   deleteSelection,
   duplicateSelection,
@@ -203,6 +206,30 @@ function WallInspector({ wall, floor }: { wall: Wall; floor: Floor }) {
         <Switch on={wall.locks.length} onChange={() => toggleWallLock(wall.id, 'length')} label={<span>Lock length{wall.locks.length && wall.lockedLength ? <span className="muted"> · {formatLength(wall.lockedLength, units)}</span> : null}</span>} />
         <Switch on={wall.locks.angle} onChange={() => toggleWallLock(wall.id, 'angle')} label="Lock angle" />
         <Switch on={wall.locks.position} onChange={() => toggleWallLock(wall.id, 'position')} label="Lock position" />
+      </div>
+      <div className="section">
+        <div className="section-title">Constraints</div>
+        {constraintsFor(floor, wall.id).map((c) => (
+          <div key={c.id} className="row between">
+            <span>
+              <Icon name="lock" size={12} /> {c.label}
+            </span>
+            <button className="icon-btn" onClick={() => removeConstraint(c.id)} data-tip="Remove" data-tip-pos="left">
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+        ))}
+        <div className="row" style={{ gap: 6 }}>
+          <button className="btn sm outline" onClick={() => addConstraint('horizontal', [wall.id])}>
+            Keep horizontal
+          </button>
+          <button className="btn sm outline" onClick={() => addConstraint('vertical', [wall.id])}>
+            Keep vertical
+          </button>
+        </div>
+        <span className="muted" style={{ fontSize: 11.5 }}>
+          Select two walls to make them parallel, perpendicular or equal.
+        </span>
       </div>
       <StatusPicker ids={[wall.id]} status={wall.status} />
       <div className="section">
@@ -554,9 +581,25 @@ function MultiInspector({ ids, floor }: { ids: Id[]; floor: Floor }) {
           </div>
           <div className="muted">Total length {formatLength(walls.reduce((s, id) => s + Math.hypot(floor.nodes[floor.walls[id].b].x - floor.nodes[floor.walls[id].a].x, floor.nodes[floor.walls[id].b].y - floor.nodes[floor.walls[id].a].y), 0), units)}</div>
           {walls.length === 2 && (
-            <button className="btn sm outline" onClick={mergeSelectedWalls}>
-              Merge walls
-            </button>
+            <>
+              <div className="section-title" style={{ marginTop: 4 }}>
+                Constrain these two walls
+              </div>
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <button className="btn sm outline" onClick={() => addConstraint('parallel', walls)}>
+                  Parallel
+                </button>
+                <button className="btn sm outline" onClick={() => addConstraint('perpendicular', walls)}>
+                  Perpendicular
+                </button>
+                <button className="btn sm outline" onClick={() => addConstraint('equalLength', walls)}>
+                  Equal length
+                </button>
+                <button className="btn sm outline" onClick={mergeSelectedWalls}>
+                  Merge
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

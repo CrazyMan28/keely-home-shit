@@ -39,6 +39,8 @@ export interface ToolHost {
   setOverlay(o: ToolOverlay): void;
   setCursor(c: string): void;
   setHint(text: string): void;
+  /** Highlights the dimension label under the cursor. */
+  setHoverLabel(key: string | null): void;
   requestRender(): void;
   /** Opens the exact-value popover at a screen position. */
   openValueInput(target: DimensionTarget, client: Vec2, current: number, initialText?: string): void;

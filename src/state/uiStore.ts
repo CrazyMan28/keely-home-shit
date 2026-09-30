@@ -151,7 +151,7 @@ export const uiStore = createStore<UiState>(() => ({
   leftPanelOpen: true,
   rightPanelOpen: typeof window === 'undefined' || window.innerWidth > 860,
   rightPanel: 'inspector',
-  rightPanelWidth: 300,
+  rightPanelWidth: 320,
   splitRatio: 0.5,
   toasts: [],
   contextMenu: null,

@@ -124,3 +124,22 @@ describe('constraint solver', () => {
     expect(Math.abs(c.x - b.x)).toBeLessThan(0.05);
   });
 });
+
+describe('constraint pipeline', () => {
+  it('adding a constraint alone re-solves geometry (no other edit needed)', () => {
+    const f0 = addWallChain(createFloor(), [{ x: 0, y: 0 }, { x: 5000, y: 300 }, { x: 5200, y: 3000 }, { x: -100, y: 2800 }], WALL, { closed: true });
+    const top = wallNear(f0.floor, { x: 2500, y: 150 });
+    const bottom = wallNear(f0.floor, { x: 2550, y: 2900 });
+    const ed = new FloorEditor(f0.floor);
+    ed.putConstraint({ id: 'c-par', kind: 'constraint', type: 'parallel', refs: [top, bottom], enabled: true });
+    const fin = finalizeFloor(f0.floor, ed.floor).floor;
+    const dir = (id: string) => {
+      const w = fin.walls[id];
+      return Math.atan2(fin.nodes[w.b].y - fin.nodes[w.a].y, fin.nodes[w.b].x - fin.nodes[w.a].x);
+    };
+    const diff = Math.abs(Math.sin(dir(top) - dir(bottom)));
+    expect(diff).toBeLessThan(1e-6);
+    // Lengths of the constrained walls are preserved by rotation.
+    expect(wallLen(fin, top)).toBeCloseTo(wallLen(f0.floor, top), 3);
+  });
+});

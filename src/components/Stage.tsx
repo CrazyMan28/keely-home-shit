@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { PlanController } from '../editor/2d/planController';
 import { editors } from '../editor/registry';
-import { setBaseLocked, createVariant } from '../state/actions';
-import { useDocument } from '../state/documentStore';
+import { addFloor, setBaseLocked, createVariant } from '../state/actions';
+import { setActiveFloor, useDocument } from '../state/documentStore';
 import { setUi, useUi } from '../state/uiStore';
 import { Icon } from './Icon';
 
@@ -94,6 +94,8 @@ function PlanView() {
     <>
       <canvas ref={canvasRef} tabIndex={0} data-testid="plan-canvas" aria-label="Floor plan editor" />
       <div className="float-bar" style={{ top: 12, left: 12 }}>
+        <FloorMenu />
+        <div className="divider-v" />
         <button className={`icon-btn${showDims ? ' active' : ''}`} onClick={() => setUi({ showDimensions: !showDims })} data-tip="Dimensions" data-tip-pos="bottom">
           <Icon name="ruler" size={16} />
         </button>
@@ -163,6 +165,52 @@ function LockedBanner() {
       <button className="btn sm" onClick={() => setBaseLocked(false)}>
         Unlock
       </button>
+    </div>
+  );
+}
+
+function FloorMenu() {
+  const floors = useDocument((s) => s.doc?.variants[s.variantId]?.floors);
+  const order = useDocument((s) => s.doc?.variants[s.variantId]?.floorOrder);
+  const active = useDocument((s) => s.floorId);
+  const [open, setOpen] = useState(false);
+  if (!floors || !order) return null;
+  return (
+    <div style={{ position: 'relative' }}>
+      <button className="btn sm" onClick={() => setOpen(!open)} data-testid="floor-menu">
+        <Icon name="layers" size={14} />
+        {floors[active]?.name}
+        <Icon name="chevronDown" size={13} />
+      </button>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 69 }} onClick={() => setOpen(false)} />
+          <div className="menu" style={{ position: 'absolute', top: 34, left: 0 }}>
+            {[...order].reverse().map((id) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setActiveFloor(id);
+                  setUi({ selection: [] });
+                  setOpen(false);
+                }}
+              >
+                {floors[id].name}
+                {id === active && <span className="sc">●</span>}
+              </button>
+            ))}
+            <div className="sep" />
+            <button
+              onClick={() => {
+                addFloor();
+                setOpen(false);
+              }}
+            >
+              <Icon name="plus" size={14} /> Add a floor
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

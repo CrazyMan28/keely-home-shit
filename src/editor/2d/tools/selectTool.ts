@@ -115,7 +115,7 @@ export class SelectTool implements Tool2D {
             ? 'move'
             : 'default',
     );
-    (this.host as ToolHost & { setHoverLabel?: (k: string | null) => void }).setHoverLabel?.(labelKey);
+    this.host.setHoverLabel(labelKey);
   }
 
   private beginDrag(d: Extract<Drag, { mode: 'pending' }>, e: ToolEvent): void {
@@ -347,6 +347,8 @@ export class SelectTool implements Tool2D {
     if (!d) return;
     if (d.mode === 'pending') {
       if (d.kind === 'empty' && !d.additive) select([]);
+      // A plain click (no drag) inside a multi-selection narrows it to that element.
+      else if (d.hitId && !d.additive && ui().selection.length > 1) select([d.hitId]);
       this.drag = null;
       return;
     }

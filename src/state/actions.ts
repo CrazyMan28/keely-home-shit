@@ -21,7 +21,7 @@ import {
 import { DEFAULT_EXTERIOR_THICKNESS, DEFAULT_INTERIOR_THICKNESS, cloneVariantAsOption } from '../model/factory';
 import { FloorEditor } from '../model/floorEditor';
 import { newId } from '../model/ids';
-import type { ElementStatus, Floor, Id, Item, Opening, OpeningType, ProjectDoc, Room, Wall, WallLocks } from '../model/types';
+import type { ConstraintType, ElementStatus, Floor, Id, Item, Opening, OpeningType, ProjectDoc, Room, Wall, WallLocks } from '../model/types';
 import {
   documentStore,
   editDoc,
@@ -200,6 +200,69 @@ export function reverseWallDirection(wallId: Id): boolean {
 export function convertWallType(wallId: Id, type: Wall['wallType']): boolean {
   const thickness = type === 'exterior' ? DEFAULT_EXTERIOR_THICKNESS : DEFAULT_INTERIOR_THICKNESS;
   return updateWall(wallId, { wallType: type, thickness }, type === 'exterior' ? 'Convert to exterior' : 'Convert to interior');
+}
+
+const CONSTRAINT_LABEL: Record<ConstraintType, string> = {
+  fixedLength: 'Fixed length',
+  fixedAngle: 'Fixed angle',
+  horizontal: 'Horizontal',
+  vertical: 'Vertical',
+  parallel: 'Parallel walls',
+  perpendicular: 'Perpendicular walls',
+  equalLength: 'Equal lengths',
+  fixedPosition: 'Fixed point',
+};
+
+/** Adds a geometric constraint; the solver applies it immediately (or reports why it can't). */
+export function addConstraint(type: ConstraintType, wallIds: Id[]): boolean {
+  const id = newId('constraint');
+  return floorEdit(`Add ${CONSTRAINT_LABEL[type].toLowerCase()} constraint`, (f) => {
+    const ed = new FloorEditor(f);
+    ed.putConstraint({ id, kind: 'constraint', type, refs: wallIds, enabled: true, label: CONSTRAINT_LABEL[type] });
+    return ed.floor;
+  });
+}
+
+export function removeConstraint(id: Id): boolean {
+  return floorEdit('Remove constraint', (f) => {
+    const ed = new FloorEditor(f);
+    ed.removeConstraint(id);
+    return ed.floor;
+  });
+}
+
+export function constraintsFor(floor: Floor, wallId: Id) {
+  return Object.values(floor.constraints).filter((c) => c.refs.includes(wallId));
+}
+
+// ── Floors ───────────────────────────────────────────────────────────────
+
+export function addFloor(): void {
+  const doc = getDoc();
+  const vid = documentStore.getState().variantId;
+  if (!doc) return;
+  const v = doc.variants[vid];
+  const last = v.floors[v.floorOrder[v.floorOrder.length - 1]];
+  const id = newId('floor');
+  const names = ['Main Floor', 'Second Floor', 'Third Floor', 'Fourth Floor'];
+  const floor: Floor = {
+    ...last,
+    id,
+    name: names[v.floorOrder.length] ?? `Floor ${v.floorOrder.length + 1}`,
+    elevation: last.elevation + last.defaultWallHeight + 300,
+    nodes: {},
+    walls: {},
+    openings: {},
+    items: {},
+    rooms: {},
+    annotations: {},
+    dimensions: {},
+    constraints: {},
+    underlay: undefined,
+  };
+  editDoc('Add floor', (d) => ({ ...d, variants: { ...d.variants, [vid]: { ...d.variants[vid], floors: { ...d.variants[vid].floors, [id]: floor }, floorOrder: [...d.variants[vid].floorOrder, id] } } }));
+  documentStore.setState({ floorId: id });
+  clearSelection();
 }
 
 // ── Openings ─────────────────────────────────────────────────────────────
