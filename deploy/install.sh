@@ -93,6 +93,7 @@ if [ ! -x "${NODE_DIR}/bin/node" ] || [ "$("${NODE_DIR}/bin/node" -v)" != "v${NO
   rm -rf "$tmp"
 fi
 export PATH="${NODE_DIR}/bin:${PATH}"
+export npm_config_update_notifier=false
 ok "node $(node -v), npm $(npm -v)"
 
 # ── Source code ──────────────────────────────────────────────────────────────
@@ -131,9 +132,24 @@ ok "built into ${SITE_DIR}"
 
 # ── App service (localhost only) ─────────────────────────────────────────────
 step "App service"
-id -u "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
-chown -R root:root "$APP_DIR" && chmod -R a+rX "$APP_DIR"
-cat >/etc/systemd/system/${APP_NAME}.service <<EOF
+id -u "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER" 2>/dev/null || true
+# Only what the service reads needs to be world-readable (not the whole build tree).
+chmod 755 "$APP_DIR"
+chmod 644 "${APP_DIR}/serve.mjs"
+chmod -R a+rX "$SITE_DIR" "$NODE_DIR"
+ok "permissions set"
+
+# Stop a previous copy so its port is free, then make sure nothing else holds the port.
+systemctl stop ${APP_NAME} >/dev/null 2>&1 || true
+port_free() { node -e 'const s=require("net").createServer();s.once("error",()=>process.exit(1));s.listen(+process.argv[1],"127.0.0.1",()=>s.close(()=>process.exit(0)))' "$1"; }
+WANT_PORT="$PORT"
+while ! port_free "$PORT"; do
+  PORT=$((PORT + 1))
+  [ "$PORT" -gt $((WANT_PORT + 50)) ] && die "No free port found near ${WANT_PORT}. Run with PORT=<number>."
+done
+[ "$PORT" != "$WANT_PORT" ] && warn "port ${WANT_PORT} is used by another program, using ${PORT} instead"
+
+cat >/etc/systemd/system/${APP_NAME}.service <<UNIT
 [Unit]
 Description=Home Planner (static app, proxied by Tailscale)
 After=network.target
@@ -151,12 +167,24 @@ PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
-EOF
+UNIT
 systemctl daemon-reload
-systemctl enable --quiet ${APP_NAME}
-systemctl restart ${APP_NAME}
-for _ in $(seq 1 20); do curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 && break || sleep 0.5; done
-curl -fsS "http://127.0.0.1:${PORT}/healthz" >/dev/null || die "The app service didn't start. See: journalctl -u ${APP_NAME} -n 50"
+systemctl enable --quiet ${APP_NAME} 2>/dev/null || true
+systemctl restart --no-block ${APP_NAME}
+ok "service started, checking it answers…"
+healthy=0
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 2 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1; then
+    healthy=1
+    break
+  fi
+  sleep 1
+done
+if [ "$healthy" -ne 1 ]; then
+  warn "The app service didn't answer. Its log:"
+  journalctl -u ${APP_NAME} -n 25 --no-pager 2>/dev/null || systemctl status ${APP_NAME} --no-pager || true
+  die "App service failed to start (see log above)."
+fi
 ok "running on 127.0.0.1:${PORT}"
 
 # ── Tailscale ────────────────────────────────────────────────────────────────
