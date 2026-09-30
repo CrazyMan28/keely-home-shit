@@ -15,6 +15,27 @@ try renovation ideas in design options, all at real-world scale.
   and comparisons.
 - Works in Safari on Mac, iPhone and iPad; can be added to the Home Screen / Dock.
 
+## Run it on your own Mac (one command)
+
+1. Open **Terminal** (press ⌘ Space, type *Terminal*, press Return).
+2. Paste this and press Return:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/CrazyMan28/keely-home-shit/main/deploy/local.sh | bash
+   ```
+
+3. After about a minute it says **Home Planner is running: http://localhost:8787** and opens it
+   in your browser. Keep the Terminal window open while you use it.
+
+- No password, no Homebrew: everything lives in the **HomePlanner** folder in your home folder
+  (drag that folder to the Trash to remove it).
+- **Next time:** double-click **Start Home Planner.command** in the HomePlanner folder.
+  (If macOS asks, right-click it → Open.)
+- Always use the same address, `http://localhost:8787`: projects are saved in the browser for
+  that address. Use *Export → Project file* for backups.
+- **Update:** run the same command again.
+- Works on Linux too.
+
 ## Host it for someone with Tailscale (one command)
 
 On a Linux server (Ubuntu, Debian, Fedora, Raspberry Pi OS…):
@@ -72,7 +93,8 @@ src/
   persistence/  IndexedDB repository, autosave, versioned project file (house-project v1)
   export/       SVG / print / GLB / measurement report
   components/   React UI (shell, inspector, panels, dialogs, import workspace)
-deploy/         install.sh (Tailscale) and serve.mjs (zero-dependency static server)
+deploy/         local.sh (run on your own computer), install.sh (server + Tailscale),
+                serve.mjs (zero-dependency static server)
 ```
 
 **Units & precision.** All lengths are stored as millimeters (`1 in = 25.4 mm` exactly) and

@@ -4,10 +4,13 @@
  * Tailscale terminates HTTPS and proxies to this on 127.0.0.1.
  *
  *   node deploy/serve.mjs [dir] [port]      (defaults: ./dist 8787)
- *   env: HOST (default 127.0.0.1), PORT, SITE_DIR
+ *   env: HOST (default 127.0.0.1), PORT, SITE_DIR,
+ *        AUTO_PORT=1  try the next ports if the chosen one is busy
+ *        OPEN=1       open the app in the default browser once it's running
  */
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 
@@ -99,5 +102,28 @@ const server = createServer(async (req, res) => {
   createReadStream(f.path).pipe(res);
 });
 
-server.listen(port, host, () => console.log(`Home Planner serving ${root} on http://${host}:${port}`));
+let current = port;
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE' && process.env.AUTO_PORT === '1' && current < port + 20) {
+    current++;
+    server.listen(current, host);
+    return;
+  }
+  console.error(err.code === 'EADDRINUSE' ? `Port ${current} is already in use.` : err.message);
+  process.exit(1);
+});
+server.on('listening', () => {
+  const url = `http://${host === '127.0.0.1' || host === '0.0.0.0' ? 'localhost' : host}:${current}`;
+  console.log(`\n  Home Planner is running:  ${url}\n\n  Keep this window open while you use it. Press Ctrl+C to stop.\n`);
+  if (process.env.OPEN === '1') {
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+    const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+    try {
+      spawn(cmd, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+    } catch {
+      /* no browser available */
+    }
+  }
+});
+server.listen(current, host);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => server.close(() => process.exit(0)));
