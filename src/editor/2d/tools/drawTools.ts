@@ -354,7 +354,11 @@ export class ItemTool implements Tool2D {
     const id = addItem(p.entry.id, p.pos, p.pos.rotation);
     if (id) {
       select([id]);
-      if (!e.mod && !e.shift) setTool('select');
+      if (!e.mod && !e.shift) {
+        setTool('select');
+        // Show exact size and wall distances for what was just placed.
+        setUi({ rightPanel: 'inspector' });
+      }
     }
   }
   pointerUp(): void {}

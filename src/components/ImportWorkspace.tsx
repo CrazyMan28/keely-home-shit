@@ -298,7 +298,8 @@ function SketchViewer({ source, observations, selected, onSelect, groups }: { so
     const o = selected ? observations.find((x) => x.id === selected) : undefined;
     const r = host.current?.getBoundingClientRect();
     if (!o?.bbox || o.sourceImageId !== source.id || !r) return;
-    const s = Math.max(view.s, Math.min(r.width / source.width, r.height / source.height) * 1.6);
+    const fitS = Math.min(r.width / source.width, r.height / source.height);
+    const s = Math.min(Math.max(view.s, fitS * 1.4), (r.width * 0.5) / Math.max(1, o.bbox.w * source.width));
     const cx = (o.bbox.x + o.bbox.w / 2) * source.width;
     const cy = (o.bbox.y + o.bbox.h / 2) * source.height;
     setView({ s, x: r.width / 2 - cx * s, y: r.height / 2 - cy * s });
@@ -597,22 +598,27 @@ function ReconCanvas({ recon, layout, observations, selected, onSelect, units }:
   const [vp, setVp] = useState({ s: 0.05, x: 60, y: 60 });
   const [dragLayout, setDragLayout] = useState<{ group: string; pos: Vec2 } | null>(null);
   const drag = useRef<{ kind: 'pan' | 'room'; start: Vec2; vp: typeof vp; group?: string; origin?: Vec2 } | null>(null);
-  const fitted = useRef(0);
+  const fitted = useRef('');
   const effLayout = dragLayout ? { ...layout, [dragLayout.group]: dragLayout.pos } : layout;
 
-  // Fit to content when the set of rooms changes.
-  useEffect(() => {
+  // Re-fit whenever rooms or their edge counts change (not while dragging).
+  const fitKey = recon.rooms.map((r) => `${r.group}:${r.edges.length}:${r.closed}`).join('|');
+  const fitNow = () => {
     const c = canvas.current;
-    if (!c || recon.rooms.length === fitted.current) return;
-    fitted.current = recon.rooms.length;
-    const pts = recon.rooms.flatMap((r) => placedPolygon(r, layout));
-    if (!pts.length) return;
+    const pts = recon.rooms.flatMap((r) => r.edges.flatMap((e) => [add(e.start, layout[r.group] ?? { x: 0, y: 0 }), add(e.end, layout[r.group] ?? { x: 0, y: 0 })]));
+    if (!c || !pts.length) return;
     const b = bounds(pts);
     const w = c.clientWidth;
     const h = c.clientHeight;
     const s = Math.min((w - 120) / Math.max(b.maxX - b.minX, 1000), (h - 120) / Math.max(b.maxY - b.minY, 1000));
     setVp({ s, x: w / 2 - ((b.minX + b.maxX) / 2) * s, y: h / 2 - ((b.minY + b.maxY) / 2) * s });
-  }, [recon.rooms, layout]);
+  };
+  useEffect(() => {
+    if (fitted.current === fitKey || dragLayout) return;
+    fitted.current = fitKey;
+    fitNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
 
   useEffect(() => {
     const c = canvas.current;
@@ -825,6 +831,11 @@ function ReconCanvas({ recon, layout, observations, selected, onSelect, units }:
         ))}
         <span className="muted">Drag rooms together — they snap one wall apart.</span>
       </div>
+      <div className="float-bar" style={{ right: 12, bottom: 12 }}>
+        <button className="icon-btn" onClick={fitNow} data-tip="Fit" data-tip-pos="top">
+          <Icon name="fit" size={16} />
+        </button>
+      </div>
     </>
   );
 }
@@ -872,7 +883,7 @@ function ReviewPanel({ recon, observations, selected, onSelect, units }: { recon
         ))}
       </div>
       <div className="panel-tabs" style={{ paddingTop: 0 }}>
-        <button className={tab === 'readings' ? 'on' : ''} onClick={() => setTab('readings')}>
+        <button className={tab === 'readings' ? 'on' : ''} onClick={() => setTab('readings')} data-testid="import-readings-tab">
           Measurements
         </button>
         <button className={tab === 'issues' ? 'on' : ''} onClick={() => setTab('issues')} data-testid="import-issues-tab">

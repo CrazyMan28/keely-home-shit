@@ -1652,7 +1652,7 @@ select.input {
 /* ───────────────────────── Import workspace ───────────────────────── */
 .import-ws {
   display: grid;
-  grid-template-columns: 280px 1fr 340px;
+  grid-template-columns: minmax(300px, 30%) minmax(0, 1fr) 360px;
   min-height: 0;
   height: 100%;
 }
@@ -1828,7 +1828,7 @@ select.input {
 /* ───────────────────────── Responsive (tablet / phone) ───────────────────────── */
 @media (max-width: 1100px) {
   .import-ws {
-    grid-template-columns: 220px 1fr 300px;
+    grid-template-columns: 280px minmax(0, 1fr) 320px;
   }
 }
 @media (max-width: 860px) {
