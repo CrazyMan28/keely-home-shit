@@ -228,7 +228,7 @@ export interface Variant {
   notes?: string;
 }
 
-export type MaterialCategory = 'wall' | 'floor' | 'counter' | 'cabinet' | 'door' | 'glass' | 'fabric' | 'generic';
+export type MaterialCategory = 'wall' | 'floor' | 'counter' | 'cabinet' | 'door' | 'glass' | 'fabric' | 'generic' | 'trim';
 export type MaterialPattern = 'none' | 'wood' | 'tile' | 'brick' | 'carpet' | 'stone' | 'concrete';
 
 export interface Material {

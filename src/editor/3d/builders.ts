@@ -3,6 +3,7 @@ import { shapeOf } from '../../assets/catalog';
 import type { WallFootprint } from '../../geometry/walls/wallGeometry';
 import { wallSpans } from '../../geometry/walls/wallPieces';
 import type { Vec2 } from '../../geometry/primitives/vec';
+import { TRIM_MATERIAL } from '../../model/materials';
 import type { Item, Material, Opening, Wall } from '../../model/types';
 import { materialFor, simpleMaterial } from './materials3d';
 
@@ -50,7 +51,61 @@ function mesh(geo: THREE.BufferGeometry, mat: THREE.Material | THREE.Material[],
 /** Dark "section cut" on wall tops so the dollhouse view reads like an architectural model. */
 const CAP_MATERIAL = new THREE.MeshStandardMaterial({ color: '#3b3e46', roughness: 0.9 });
 
-export function buildWall(wall: Wall, fp: WallFootprint, openings: Opening[], mats: Mats, variant: StatusVariant): THREE.Group {
+const BASEBOARD_HEIGHT = 0.1016; // 4"
+const BASEBOARD_THICKNESS = 0.016;
+const CASING_WIDTH = 0.07;
+const CASING_THICKNESS = 0.016;
+
+function trimMaterial(mats: Mats, variant: StatusVariant): THREE.Material {
+  return variant === 'demolish' ? materialFor(undefined, 'demolish') : materialFor(mats[TRIM_MATERIAL] ?? { id: TRIM_MATERIAL, name: 'Trim', category: 'trim', color: '#f6f5f2', roughness: 0.45, metalness: 0, pattern: 'none', patternScale: 300 }, variant);
+}
+
+/** Which wall faces get a baseboard: the ones that face into a room. */
+export interface TrimSides {
+  left: boolean;
+  right: boolean;
+}
+
+function buildBaseboards(fp: WallFootprint, openings: Opening[], sides: TrimSides, mat: THREE.Material): THREE.Mesh[] {
+  const out: THREE.Mesh[] = [];
+  const faces: Array<{ start: Vec2; end: Vec2; out: number; on: boolean }> = [
+    { start: fp.leftStart, end: fp.leftEnd, out: 1, on: sides.left },
+    { start: fp.rightStart, end: fp.rightEnd, out: -1, on: sides.right },
+  ];
+  // Doorways interrupt the baseboard; windows sit above it.
+  const gaps = openings
+    .filter((o) => o.type !== 'window' && o.sill < BASEBOARD_HEIGHT / M)
+    .map((o) => [o.offset, o.offset + o.width] as const)
+    .sort((p, q) => p[0] - q[0]);
+  const rotY = -Math.atan2(fp.dir.y, fp.dir.x);
+  for (const f of faces) {
+    if (!f.on) continue;
+    // Centerline distances (from node a) covered by this face.
+    const d0 = (f.start.x - fp.a.x) * fp.dir.x + (f.start.y - fp.a.y) * fp.dir.y;
+    const d1 = (f.end.x - fp.a.x) * fp.dir.x + (f.end.y - fp.a.y) * fp.dir.y;
+    const runs: Array<[number, number]> = [];
+    let cursor = d0;
+    for (const [gs, ge] of gaps) {
+      if (gs > cursor) runs.push([cursor, Math.min(gs, d1)]);
+      cursor = Math.max(cursor, ge);
+    }
+    if (cursor < d1) runs.push([cursor, d1]);
+    for (const [r0, r1] of runs) {
+      const len = (r1 - r0) * M;
+      if (len < 0.01) continue;
+      const mid = (r0 + r1) / 2 - d0;
+      const cx = f.start.x + fp.dir.x * mid + fp.normal.x * f.out * (BASEBOARD_THICKNESS / 2 / M);
+      const cy = f.start.y + fp.dir.y * mid + fp.normal.y * f.out * (BASEBOARD_THICKNESS / 2 / M);
+      const bb = mesh(new THREE.BoxGeometry(len, BASEBOARD_HEIGHT, BASEBOARD_THICKNESS), mat);
+      bb.position.set(cx * M, BASEBOARD_HEIGHT / 2, cy * M);
+      bb.rotation.y = rotY;
+      out.push(bb);
+    }
+  }
+  return out;
+}
+
+export function buildWall(wall: Wall, fp: WallFootprint, openings: Opening[], mats: Mats, variant: StatusVariant, trim: TrimSides = { left: true, right: true }): THREE.Group {
   const g = new THREE.Group();
   const side = materialFor(mats[wall.materialId], variant);
   // ExtrudeGeometry groups: 0 = caps (top/bottom), 1 = sides.
@@ -67,6 +122,7 @@ export function buildWall(wall: Wall, fp: WallFootprint, openings: Opening[], ma
       if (geo) g.add(mesh(geo, mat, variant !== 'demolish'));
     }
   }
+  for (const bb of buildBaseboards(fp, openings, trim, trimMaterial(mats, variant))) g.add(bb);
   return tag(g, wall.id, 'wall');
 }
 
@@ -103,7 +159,7 @@ export function buildOpening(o: Opening, fp: WallFootprint, thickness: number, m
   const w = o.width * M;
   const h = o.height * M;
   const sill = o.sill * M;
-  const frame = variant === 'demolish' ? materialFor(undefined, 'demolish') : simpleMaterial('#f3f1ec', 0.5);
+  const frame = trimMaterial(mats, variant);
   const fw = 0.04; // frame member width
   const fd = t + 0.01;
   const box = (sx: number, sy: number, sz: number, x: number, y: number, z: number, mat: THREE.Material) => {
@@ -117,6 +173,16 @@ export function buildOpening(o: Opening, fp: WallFootprint, thickness: number, m
     box(fw, h, fd, fw / 2, sill + h / 2, 0, frame);
     box(fw, h, fd, w - fw / 2, sill + h / 2, 0, frame);
     box(w, fw, fd, w / 2, sill + h - fw / 2, 0, frame);
+  }
+  if (o.type !== 'opening') {
+    // Casing on both faces: two sides plus a head piece that overlaps them.
+    const cw = CASING_WIDTH;
+    for (const face of [1, -1]) {
+      const z = face * (t / 2 + CASING_THICKNESS / 2);
+      box(cw, h + cw, CASING_THICKNESS, -cw / 2, sill + (h + cw) / 2, z, frame);
+      box(cw, h + cw, CASING_THICKNESS, w + cw / 2, sill + (h + cw) / 2, z, frame);
+      box(w + cw * 2, cw, CASING_THICKNESS, w / 2, sill + h + cw / 2, z, frame);
+    }
   }
   if (o.type === 'window') {
     box(w, fw, fd, w / 2, sill + fw / 2, 0, frame);

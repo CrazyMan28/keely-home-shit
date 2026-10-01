@@ -106,11 +106,11 @@ export function createSampleProject(): ProjectDoc {
 
   const f2 = finalizeFloor(f1, ed2.floor).floor;
   const names: Array<[number, number, string, string]> = [
-    [ft(7), ft(7), 'Living Room', 'mat-floor-oak'],
+    [ft(7), ft(7), 'Living Room', 'mat-floor-laminate-light-gray'],
     [ft(25), ft(6), 'Kitchen', 'mat-floor-tile'],
-    [ft(7), ft(20), 'Bedroom', 'mat-floor-carpet'],
+    [ft(7), ft(20), 'Bedroom', 'mat-floor-laminate-dark-gray'],
     [ft(19), ft(19), 'Bathroom', 'mat-floor-slate'],
-    [ft(30), ft(20), 'Den', 'mat-floor-walnut'],
+    [ft(30), ft(20), 'Den', 'mat-floor-laminate-dark-gray'],
   ];
   const ed3 = new FloorEditor(f2);
   for (const r of Object.values(f2.rooms)) {
@@ -125,6 +125,8 @@ export function createSampleProject(): ProjectDoc {
     }
     if (best) ed3.patchRoom(r.id, { name: best[2], floorMaterialId: best[3] });
   }
+  // Gray paint: dark on exterior walls, medium inside (baseboards and casing are white trim).
+  for (const w of Object.values(f2.walls)) ed3.patchWall(w.id, { materialId: w.wallType === 'exterior' ? 'mat-paint-gray-dark' : 'mat-paint-gray-medium' });
   return {
     ...doc,
     variants: { ...doc.variants, [base.id]: { ...base, floors: { [f2.id]: ed3.floor } } },

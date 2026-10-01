@@ -263,8 +263,14 @@ export class SceneController implements SceneEditorApi {
       const w = floor.walls[fp.wallId];
       const ops = openingsByWall.get(w.id) ?? [];
       const variant = this.statusVariant(w.status, view);
-      const sig = [fp.polygon.map((p) => `${r1(p.x)},${r1(p.y)}`).join(';'), w.height, w.materialId, variant, ops.map((o) => `${r1(o.offset)}|${r1(o.width)}|${r1(o.height)}|${r1(o.sill)}`).join(',')].join('#');
-      upsert(`wall:${w.id}`, sig, this.groups.walls, () => buildWall(w, fp, ops, mats, variant));
+      // Baseboards go on faces that look into a room (not onto the outside of an exterior wall).
+      const faceInRoom = (sign: number) => {
+        const mid = { x: (fp.a.x + fp.b.x) / 2 + fp.normal.x * sign * (w.thickness / 2 + 100), y: (fp.a.y + fp.b.y) / 2 + fp.normal.y * sign * (w.thickness / 2 + 100) };
+        return derived.rooms.some((r) => pointInPolygon(mid, r.interiorPolygon));
+      };
+      const trim = { left: faceInRoom(1), right: faceInRoom(-1) };
+      const sig = [fp.polygon.map((p) => `${r1(p.x)},${r1(p.y)}`).join(';'), w.height, w.materialId, variant, trim.left, trim.right, ops.map((o) => `${r1(o.offset)}|${r1(o.width)}|${r1(o.height)}|${r1(o.sill)}|${o.type}`).join(',')].join('#');
+      upsert(`wall:${w.id}`, sig, this.groups.walls, () => buildWall(w, fp, ops, mats, variant, trim));
       for (const o of ops) {
         const ov = this.statusVariant(o.status, view);
         const osig = [r1(o.offset), r1(o.width), r1(o.height), r1(o.sill), o.type, JSON.stringify(o.door ?? o.window ?? {}), r1(fp.a.x), r1(fp.a.y), fp.dir.x.toFixed(6), fp.dir.y.toFixed(6), w.thickness, ov, o.materialId].join('|');

@@ -17,10 +17,14 @@ export const DEFAULT_MATERIALS: Material[] = [
   m('mat-paint-greige', 'Painted drywall – Greige', 'wall', '#d8d0c4'),
   m('mat-paint-sage', 'Painted drywall – Sage', 'wall', '#b9c4b0'),
   m('mat-paint-navy', 'Painted drywall – Navy', 'wall', '#3c4a63'),
+  m('mat-paint-gray-medium', 'Painted drywall – Medium gray', 'wall', '#8d9093'),
+  m('mat-paint-gray-dark', 'Painted drywall – Dark gray', 'wall', '#4a4d51'),
   m('mat-brick', 'Brick', 'wall', '#a35a42', 'brick', 230),
   m('mat-wall-wood', 'Wood paneling', 'wall', '#9a7350', 'wood', 150),
   m('mat-wall-tile', 'Wall tile – White subway', 'wall', '#f2f1ee', 'tile', 150, 0.3),
   m('mat-floor-oak', 'Oak hardwood', 'floor', '#b98d5f', 'wood', 180, 0.6),
+  m('mat-floor-laminate-light-gray', 'Laminate – Light gray', 'floor', '#b9bbbd', 'wood', 190, 0.55),
+  m('mat-floor-laminate-dark-gray', 'Laminate – Dark gray', 'floor', '#5b5e62', 'wood', 190, 0.55),
   m('mat-floor-walnut', 'Walnut hardwood', 'floor', '#6e4a33', 'wood', 180, 0.55),
   m('mat-floor-tile', 'Porcelain tile – Light', 'floor', '#dcd8d0', 'tile', 600, 0.4),
   m('mat-floor-slate', 'Slate tile', 'floor', '#5d6166', 'tile', 400, 0.7),
@@ -35,6 +39,7 @@ export const DEFAULT_MATERIALS: Material[] = [
   m('mat-cabinet-oak', 'Cabinet – Natural oak', 'cabinet', '#c29a6b', 'wood', 150, 0.6),
   m('mat-door-white', 'Door – Painted white', 'door', '#f5f4f0', 'none', 300, 0.5),
   m('mat-door-wood', 'Door – Stained wood', 'door', '#7a5236', 'wood', 120, 0.55),
+  m('mat-trim-white', 'Trim – Painted white', 'trim', '#f6f5f2', 'none', 300, 0.45),
   m('mat-glass', 'Glass', 'glass', '#bcd6e6', 'none', 300, 0.05, 0),
   m('mat-fabric-gray', 'Fabric – Gray', 'fabric', '#8b8e93', 'none', 300, 1),
   m('mat-fabric-cream', 'Fabric – Cream', 'fabric', '#e6ddcb', 'none', 300, 1),
@@ -45,6 +50,8 @@ export const DEFAULT_MATERIALS: Material[] = [
 
 export const DEFAULT_WALL_MATERIAL = 'mat-paint-white';
 export const DEFAULT_FLOOR_MATERIAL = 'mat-floor-oak';
+/** Baseboards, door and window casing. */
+export const TRIM_MATERIAL = 'mat-trim-white';
 
 export function defaultMaterialRecord(): Record<string, Material> {
   return Object.fromEntries(DEFAULT_MATERIALS.map((mat) => [mat.id, { ...mat }]));
